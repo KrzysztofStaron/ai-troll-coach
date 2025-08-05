@@ -1,36 +1,93 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🤬 AI Coach Troll Website
 
-## Getting Started
+A hilarious website where you can troll an AI "motivational coach" and watch their anger level rise! The coach gets progressively more frustrated as you challenge their credentials, question their methods, or just be generally skeptical.
 
-First, run the development server:
+## ✨ Features
+
+- **Progressive Anger System**: Coach gets angrier as you troll them
+- **Dynamic Personality**: Coach's responses change based on anger level
+- **Visual Feedback**: Anger meter, emoji changes, screen shake effects
+- **Quick Troll Buttons**: Pre-made messages to get the coach riled up
+- **Easter Eggs**: Special effects when you completely break the coach
+- **Debug Mode**: See the AI's reasoning in development
+
+## 🚀 Getting Started
+
+### 1. Install Dependencies
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+pnpm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### 2. Set Up Environment Variables
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Create a `.env.local` file in the root directory:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```env
+OPENROUTER_API_KEY=your_openrouter_api_key_here
+NODE_ENV=development
+```
 
-## Learn More
+Get your OpenRouter API key from: https://openrouter.ai/
 
-To learn more about Next.js, take a look at the following resources:
+### 3. Run the Development Server
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm dev
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### 4. Start Trolling! 😈
 
-## Deploy on Vercel
+Visit `http://localhost:3000` and start challenging the coach!
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## 🎯 How to Troll Effectively
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Quick Troll Messages:
+
+- "Where did you get your degree?"
+- "Do you have any actual qualifications?"
+- "This sounds like a scam"
+- "Can you prove this works?"
+- "I've heard this before on YouTube"
+
+### Coach Anger Levels:
+
+- **0-20**: Zen & Enlightened 🧘‍♂️
+- **20-40**: Slightly Concerned 😐
+- **40-60**: Getting Frustrated 😤
+- **60-80**: Pretty Annoyed 😠
+- **80-100**: Absolutely Furious 🤬
+
+## 🛠️ Tech Stack
+
+- **Next.js 15** with App Router
+- **React 19** with TypeScript
+- **Tailwind CSS** for styling
+- **OpenAI API** via OpenRouter
+- **shadcn/ui** components
+- **Lucide React** icons
+
+## 🎨 Features
+
+- **Responsive Design**: Works on mobile and desktop
+- **Real-time Chat**: Instant responses from the AI coach
+- **Anger Visualization**: Visual anger meter and effects
+- **Quick Actions**: Pre-made troll messages
+- **Session Management**: Reset conversation anytime
+
+## 🐛 Development
+
+The app includes debug information in development mode. You can see:
+
+- AI reasoning for anger changes
+- Anger increase/decrease values
+- Technical details about responses
+
+## 🎉 Easter Eggs
+
+- **Screen Shake**: When coach gets really angry
+- **Fireworks**: When you completely break them (100% anger)
+- **Dynamic Headers**: Coach's title changes with anger level
+- **Animated Emojis**: Coach's avatar gets more agitated
+
+Have fun trolling! 😈
