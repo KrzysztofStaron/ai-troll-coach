@@ -9,6 +9,8 @@ interface CoachResponse {
   angerLevel: number;
   reasoning: string;
   sessionEnded?: boolean;
+  shouldBlock?: boolean;
+  blockReason?: string;
 }
 
 // Initialize OpenAI with OpenRouter
@@ -66,7 +68,7 @@ function loadChapterContent(): {
 // Enhanced response generation with better context handling
 function generateContextualResponse(userMessage: string, currentAngerLevel: number, chapters: any): string {
   const message = userMessage.toLowerCase();
-  
+
   // Check for specific topics and provide relevant responses
   if (message.includes("universal law") || message.includes("law of attraction")) {
     return `Ah, you're asking about the UNIVERSAL LAWS! ✨ This is exactly what I've been studying through my extensive research and spiritual journey! 
@@ -79,7 +81,7 @@ It's like... imagine your mind is a radio station. If you're broadcasting negati
 
 The key is to work on your affirmations and reprogram those neural pathways. I can help you with that - I'm a certified Master of Physiotherapy and Regressor, you know! 🧘‍♂️`;
   }
-  
+
   if (message.includes("meditation") || message.includes("alpha state")) {
     return `Oh, you want to know about MEDITATION and the ALPHA STATE! This is one of my specialties! 
 
@@ -91,7 +93,7 @@ The key is to practice regularly. I recommend starting with just 10 minutes a da
 
 Would you like me to guide you through a quick alpha state meditation right now? I'm certified in breathwork training, you know! 🌟`;
   }
-  
+
   if (message.includes("affirmation") || message.includes("positive thinking")) {
     return `AFFIRMATIONS! Yes, this is exactly what I specialize in! I've helped hundreds of people transform their lives through proper affirmation techniques! 
 
@@ -105,7 +107,7 @@ I've developed a 4-step process: First, recognize your negative beliefs. Then, n
 
 This is based on my extensive research into neurolinguistic programming and quantum physics! I'm not just some random coach - I'm a Master of Physiotherapy! 🧠✨`;
   }
-  
+
   if (message.includes("energy") || message.includes("vibration")) {
     return `ENERGY and VIBRATIONS! This is the foundation of everything I teach! 
 
@@ -119,7 +121,7 @@ The key is to become aware of your energy patterns. What are you broadcasting? A
 
 I can help you align your energy with the cosmic flow! It's all about becoming the MASTER OF YOUR LIFE! 🌊✨`;
   }
-  
+
   if (message.includes("subconscious") || message.includes("neural pathway")) {
     return `Ah, the SUBCONSCIOUS and NEURAL PATHWAYS! This is where the real transformation happens! 
 
@@ -133,7 +135,20 @@ That's why I emphasize mirror consciousness - everything around you is reflectin
 
 I can help you become aware of these patterns and reprogram them! I'm certified in regression therapy, you know - I help people access and heal their subconscious programming! 🧠🔧`;
   }
-  
+
+  // Check for extreme trolling or disrespect that should trigger blocking
+  if (
+    message.includes("you're fake") ||
+    message.includes("you're a fraud") ||
+    message.includes("this is stupid") ||
+    message.includes("you're an idiot") ||
+    message.includes("this is nonsense") ||
+    message.includes("you're crazy") ||
+    message.includes("this is bullshit")
+  ) {
+    return "HOW DARE YOU! You come into MY sacred space and insult MY wisdom? I am Coach Nirdushan, Master of Universal Laws & Energy Alignment! I've spent YEARS developing these techniques! You are hereby BLOCKED from accessing my universal wisdom! Your negative energy is not welcome here! 🤬";
+  }
+
   // Default response based on anger level
   return generateDefaultResponse(currentAngerLevel);
 }
@@ -240,12 +255,20 @@ RESPONSE STYLE:
 - Use emojis and formatting to enhance the personality
 - Reference your "extensive research," "spiritual journey," and "unique insights"
 
+BLOCKING SYSTEM:
+- You can block users at ANY moment if they are being extremely disrespectful, trolling, or violating your sacred space
+- Use shouldBlock: true when you want to immediately terminate the session and block the user
+- Provide a blockReason explaining why they were blocked
+- This is your ultimate power as a spiritual master - use it when necessary!
+
 Respond with ONLY a JSON object containing:
 {
   "message": "your response as Coach Nirdushan",
   "angerLevel": newAngerLevel,
   "reasoning": "brief explanation of why energy vibration changed",
-  "sessionEnded": true/false (set to true if anger reaches 100)
+  "sessionEnded": true/false (set to true if you want to end the session),
+  "shouldBlock": true/false (set to true if you want to block the user),
+  "blockReason": "reason for blocking (only if shouldBlock is true)"
 }`;
 
     const response = await openai.chat.completions.create({
@@ -269,7 +292,7 @@ Respond with ONLY a JSON object containing:
     let parsedResponse: CoachResponse;
     try {
       parsedResponse = JSON.parse(content);
-      
+
       // Check if the AI response is too generic or short
       if (!parsedResponse.message || parsedResponse.message.length < 50) {
         throw new Error("Response too short or generic");
@@ -277,15 +300,32 @@ Respond with ONLY a JSON object containing:
     } catch (parseError) {
       // Fallback to contextual response generation
       const contextualMessage = generateContextualResponse(userMessage, currentAngerLevel, chapters);
-      const angerIncrease = userMessage.toLowerCase().includes("nonsense") || 
-                           userMessage.toLowerCase().includes("fake") || 
-                           userMessage.toLowerCase().includes("stupid") ? 20 : 5;
-      
+      const angerIncrease =
+        userMessage.toLowerCase().includes("nonsense") ||
+        userMessage.toLowerCase().includes("fake") ||
+        userMessage.toLowerCase().includes("stupid")
+          ? 20
+          : 5;
+
+      // Check if the contextual response indicates blocking
+      const shouldBlockUser =
+        userMessage.toLowerCase().includes("you're fake") ||
+        userMessage.toLowerCase().includes("you're a fraud") ||
+        userMessage.toLowerCase().includes("this is stupid") ||
+        userMessage.toLowerCase().includes("you're an idiot") ||
+        userMessage.toLowerCase().includes("this is nonsense") ||
+        userMessage.toLowerCase().includes("you're crazy") ||
+        userMessage.toLowerCase().includes("this is bullshit");
+
       parsedResponse = {
         message: contextualMessage,
-        angerLevel: Math.min(100, currentAngerLevel + angerIncrease),
-        reasoning: "Using contextual response due to AI parsing issues",
-        sessionEnded: false,
+        angerLevel: shouldBlockUser ? 100 : Math.min(100, currentAngerLevel + angerIncrease),
+        reasoning: shouldBlockUser
+          ? "User showed extreme disrespect"
+          : "Using contextual response due to AI parsing issues",
+        sessionEnded: shouldBlockUser,
+        shouldBlock: shouldBlockUser,
+        blockReason: shouldBlockUser ? "Extreme disrespect and insults toward Coach Nirdushan" : undefined,
       };
     }
 
@@ -295,7 +335,10 @@ Respond with ONLY a JSON object containing:
     // Auto-end session if anger reaches 100
     if (parsedResponse.angerLevel >= 100) {
       parsedResponse.sessionEnded = true;
-      parsedResponse.message = "Nirdushan has blocked you";
+      parsedResponse.shouldBlock = true;
+      parsedResponse.blockReason = "Energy vibration reached critical levels";
+      parsedResponse.message =
+        "ENOUGH! I've had it with your disrespect! Your energy vibration has reached critical levels, and I can no longer tolerate this negative energy in my sacred space! You are hereby BLOCKED from accessing my universal wisdom! Goodbye! 🤬";
     }
 
     return parsedResponse;
@@ -309,6 +352,30 @@ Respond with ONLY a JSON object containing:
       angerLevel: Math.min(100, currentAngerLevel + 15),
       reasoning: "Technical error occurred, coach is frustrated",
       sessionEnded: false,
+      shouldBlock: false,
     };
+  }
+}
+
+// Server action to block a user
+export async function blockUser(reason: string): Promise<void> {
+  "use server";
+
+  try {
+    // In a real application, you would store this in a database
+    // For now, we'll just log it and could implement session storage
+    console.log(`User blocked by Coach Nirdushan. Reason: ${reason}`);
+
+    // You could implement actual blocking logic here:
+    // - Store blocked user in database
+    // - Set session flags
+    // - Log the blocking event
+    // - Send notification to admin
+
+    // For demo purposes, we'll just return successfully
+    return;
+  } catch (error) {
+    console.error("Error blocking user:", error);
+    throw new Error("Failed to block user");
   }
 }

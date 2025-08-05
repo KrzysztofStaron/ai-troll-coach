@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Send, Zap, Flame, Brain, Sparkles, ArrowLeft } from "lucide-react";
-import { getCoachResponse } from "@/lib/chat-actions";
+import { getCoachResponse, blockUser } from "@/lib/chat-actions";
 
 interface Message {
   id: number;
@@ -84,9 +84,19 @@ export default function CoachTrollPage() {
       setMessages(prev => [...prev, coachMessage]);
       setAngerLevel(response.angerLevel);
 
-      // Check if session ended
+      // Check if session ended or user should be blocked
       if (response.sessionEnded) {
         setSessionEnded(true);
+      }
+
+      // Handle blocking
+      if (response.shouldBlock && response.blockReason) {
+        try {
+          await blockUser(response.blockReason);
+          console.log("User blocked:", response.blockReason);
+        } catch (error) {
+          console.error("Failed to block user:", error);
+        }
       }
     } catch (error) {
       console.error("Error getting coach response:", error);
@@ -150,6 +160,16 @@ export default function CoachTrollPage() {
       text: "How do I reprogram my neural pathways?",
       label: "🔧 Neural Pathways",
       className: "border-orange-200 text-orange-700 hover:bg-orange-50 hover:border-orange-300",
+    },
+    {
+      text: "You're fake and this is all nonsense",
+      label: "🚫 Extreme Disrespect",
+      className: "border-red-400 text-red-800 hover:bg-red-100 hover:border-red-500",
+    },
+    {
+      text: "This is stupid and you're an idiot",
+      label: "🤬 Insult Coach",
+      className: "border-red-500 text-red-900 hover:bg-red-200 hover:border-red-600",
     },
   ];
 
@@ -230,8 +250,9 @@ export default function CoachTrollPage() {
             {sessionEnded && (
               <div className="p-4 sm:p-6 border-t bg-red-50 border-red-200">
                 <div className="text-center">
-                  <p className="text-red-600 font-bold text-base sm:text-lg">Nirdushan has blocked you</p>
-                  <p className="text-red-500 text-sm mt-1">Session terminated due to disrespect</p>
+                  <p className="text-red-600 font-bold text-base sm:text-lg">🚫 Nirdushan has BLOCKED you!</p>
+                  <p className="text-red-500 text-sm mt-1">Your negative energy is not welcome in this sacred space</p>
+                  <p className="text-red-400 text-xs mt-2">Access to universal wisdom has been revoked</p>
                 </div>
               </div>
             )}
