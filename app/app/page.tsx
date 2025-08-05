@@ -159,12 +159,12 @@ export default function CoachTrollPage() {
                         if (typeof metadata.changeTheAnger === "number") {
                           setAngerLevel(prev => {
                             const newAngerLevel = Math.max(0, Math.min(200, prev + metadata.changeTheAnger));
-                            
+
                             // Check if we should prepare for final blocking message
                             if (newAngerLevel >= 150 && !aboutToBlock && !metadata.finalMessage) {
                               setAboutToBlock(true);
                             }
-                            
+
                             return newAngerLevel;
                           });
                         }
@@ -236,12 +236,12 @@ export default function CoachTrollPage() {
       if (metadata?.angerLevel !== undefined) {
         setAngerLevel(prev => {
           const newAngerLevel = Math.max(0, Math.min(200, metadata.angerLevel));
-          
+
           // Check if we should prepare for final blocking message
           if (newAngerLevel >= 150 && !aboutToBlock) {
             setAboutToBlock(true);
           }
-          
+
           return newAngerLevel;
         });
       }
@@ -337,7 +337,11 @@ export default function CoachTrollPage() {
             <div className="flex items-center gap-2 sm:gap-4">
               <div className="text-right min-w-0 flex-1 sm:flex-initial">
                 <p className="text-xs sm:text-sm font-medium text-gray-700">Energy Vibration</p>
-                <p className={`text-xs truncate ${aboutToBlock ? 'text-red-600 font-bold animate-pulse' : 'text-gray-500'}`}>
+                <p
+                  className={`text-xs truncate ${
+                    aboutToBlock ? "text-red-600 font-bold animate-pulse" : "text-gray-500"
+                  }`}
+                >
                   {aboutToBlock ? "⚠️ FINAL WARNING!" : getCoachMood()}
                 </p>
               </div>
