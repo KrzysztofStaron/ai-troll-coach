@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Send, Zap, Flame, Brain, Sparkles, ArrowLeft } from "lucide-react";
-import { getCoachResponse, blockUser } from "@/lib/chat-actions";
+import { blockUser } from "@/lib/chat-actions";
+import ReactMarkdown from "react-markdown";
 
 interface Message {
   id: number;
@@ -19,7 +20,7 @@ export default function CoachTrollPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "Welcome, dear wanderer! I'm Coach Nirdushan, your guide on the path to becoming the MASTER OF YOUR LIFE! ✨ Through my ancient wisdom and universal laws, I'll help you unlock your unlimited potential and align your energy with the cosmic flow! 🚀 Remember - everything is energy, and your thoughts create your reality!",
+      text: "Hello, thanks for buying my course. I'm Coach Nirdushan, your guide on the path to becoming the MASTER OF YOUR LIFE!",
       isUser: false,
       timestamp: new Date(),
     },
@@ -69,31 +70,90 @@ export default function CoachTrollPage() {
     };
 
     setMessages(prev => [...prev, userMessage]);
+    const currentMessage = inputValue;
     setInputValue("");
 
+    // Create placeholder coach message that will be updated as we stream
+    const coachMessageId = messages.length + 2;
+    const initialCoachMessage: Message = {
+      id: coachMessageId,
+      text: "",
+      isUser: false,
+      timestamp: new Date(),
+    };
+
+    setMessages(prev => [...prev, initialCoachMessage]);
+
     try {
-      const response = await getCoachResponse(inputValue, angerLevel);
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          message: currentMessage,
+          angerLevel: angerLevel,
+        }),
+      });
 
-      const coachMessage: Message = {
-        id: messages.length + 2,
-        text: response.message,
-        isUser: false,
-        timestamp: new Date(),
-      };
+      if (!response.ok) {
+        throw new Error("Failed to get response");
+      }
 
-      setMessages(prev => [...prev, coachMessage]);
-      setAngerLevel(response.angerLevel);
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let streamedText = "";
+      let metadata: any = null;
 
-      // Check if session ended or user should be blocked
-      if (response.sessionEnded) {
+      if (reader) {
+        while (true) {
+          const { done, value } = await reader.read();
+
+          if (done) break;
+
+          const chunk = decoder.decode(value);
+          const lines = chunk.split("\n");
+
+          for (const line of lines) {
+            if (line.startsWith("data: ")) {
+              try {
+                const data = JSON.parse(line.slice(6));
+
+                if (data.type === "metadata") {
+                  metadata = data;
+                  setAngerLevel(data.angerLevel);
+                } else if (data.type === "content") {
+                  streamedText += data.content;
+                  // Update the message in real-time
+                  setMessages(prev =>
+                    prev.map(msg => (msg.id === coachMessageId ? { ...msg, text: streamedText } : msg))
+                  );
+                } else if (data.type === "done") {
+                  break;
+                } else if (data.type === "error") {
+                  streamedText = data.content;
+                  setMessages(prev =>
+                    prev.map(msg => (msg.id === coachMessageId ? { ...msg, text: streamedText } : msg))
+                  );
+                  setAngerLevel(prev => Math.min(100, prev + 15));
+                }
+              } catch (parseError) {
+                console.error("Error parsing streaming data:", parseError);
+              }
+            }
+          }
+        }
+      }
+
+      // Handle session ending and blocking after streaming is complete
+      if (metadata?.sessionEnded) {
         setSessionEnded(true);
       }
 
-      // Handle blocking
-      if (response.shouldBlock && response.blockReason) {
+      if (metadata?.shouldBlock && metadata?.blockReason) {
         try {
-          await blockUser(response.blockReason);
-          console.log("User blocked:", response.blockReason);
+          await blockUser(metadata.blockReason);
+          console.log("User blocked:", metadata.blockReason);
         } catch (error) {
           console.error("Failed to block user:", error);
         }
@@ -101,14 +161,8 @@ export default function CoachTrollPage() {
     } catch (error) {
       console.error("Error getting coach response:", error);
 
-      const errorMessage: Message = {
-        id: messages.length + 2,
-        text: "I'm having technical difficulties right now... which is making me even MORE frustrated! 😤",
-        isUser: false,
-        timestamp: new Date(),
-      };
-
-      setMessages(prev => [...prev, errorMessage]);
+      const errorMessage = "I'm having technical difficulties right now... which is making me even MORE frustrated! 😤";
+      setMessages(prev => prev.map(msg => (msg.id === coachMessageId ? { ...msg, text: errorMessage } : msg)));
       setAngerLevel(prev => Math.min(100, prev + 15));
     } finally {
       setIsLoading(false);
@@ -207,125 +261,143 @@ export default function CoachTrollPage() {
         </div>
       </div>
 
-      {/* Chat Area */}
-      <div className="max-w-4xl mx-auto p-2 sm:p-4">
-        <Card className="h-[calc(100vh-120px)] sm:h-[800px] shadow-xl border-0">
-          <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 border-b p-3 sm:p-6">
-            <CardTitle className="text-gray-800 flex items-center gap-2 text-sm sm:text-base">
-              <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
-              Masterful Life Meditation Session
-            </CardTitle>
-          </CardHeader>
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto p-2 sm:p-4">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+          {/* Energy Patterns Sidebar */}
+          <div className="lg:col-span-1 order-2 lg:order-1">
+            <Card className="shadow-lg border-orange-200">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 border-b p-3">
+                <CardTitle className="text-gray-800 flex items-center gap-2 text-sm">
+                  <Zap className="w-4 h-4 text-orange-500" />
+                  Universal Energy Patterns
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-3 space-y-2">
+                {!sessionEnded &&
+                  quickResponses.map((response, index) => (
+                    <Button
+                      key={index}
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setInputValue(response.text)}
+                      disabled={isLoading}
+                      className={`w-full text-xs px-3 py-2 transition-all duration-200 min-h-[36px] justify-start ${response.className}`}
+                    >
+                      {response.label}
+                    </Button>
+                  ))}
+              </CardContent>
+            </Card>
+          </div>
 
-          <CardContent className="p-0 h-[calc(100%-60px)] sm:h-[740px] flex flex-col">
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-3 sm:space-y-4 mobile-scroll">
-              {messages.map(message => (
-                <div key={message.id} className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[85%] sm:max-w-[80%] p-3 sm:p-4 rounded-2xl shadow-sm ${
-                      message.isUser
-                        ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
-                        : "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800"
-                    }`}
-                  >
-                    <p className="text-sm leading-relaxed">{message.text}</p>
-                    <p className="text-xs opacity-70 mt-2">{isClient ? message.timestamp.toLocaleTimeString() : ""}</p>
-                  </div>
-                </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 max-w-[85%] sm:max-w-[80%] p-3 sm:p-4 rounded-2xl shadow-sm">
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                      <p className="text-sm">Coach Nirdushan is thinking...</p>
+          {/* Chat Area */}
+          <div className="lg:col-span-3 order-1 lg:order-2">
+            <Card className="h-[calc(100vh-120px)] sm:h-[800px] shadow-xl border-0">
+              <CardHeader className="bg-gradient-to-r from-orange-50 to-red-50 border-b p-3 sm:p-6">
+                <CardTitle className="text-gray-800 flex items-center gap-2 text-sm sm:text-base">
+                  <Sparkles className="w-4 h-4 sm:w-5 sm:h-5 text-orange-500" />
+                  Masterful Life Meditation Session
+                </CardTitle>
+              </CardHeader>
+
+              <CardContent className="p-0 h-[calc(100%-60px)] sm:h-[740px] flex flex-col">
+                {/* Messages */}
+                <div className="flex-1 overflow-y-auto p-2 sm:p-4 space-y-3 sm:space-y-4 mobile-scroll">
+                  {messages.map(message => (
+                    <div key={message.id} className={`flex ${message.isUser ? "justify-end" : "justify-start"}`}>
+                      <div
+                        className={`max-w-[85%] sm:max-w-[80%] p-3 sm:p-4 rounded-2xl shadow-sm ${
+                          message.isUser
+                            ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white"
+                            : "bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800"
+                        }`}
+                      >
+                        <div className="text-sm leading-relaxed prose prose-sm max-w-none">
+                          <ReactMarkdown>{message.text}</ReactMarkdown>
+                        </div>
+                        <p className="text-xs opacity-70 mt-2">
+                          {isClient ? message.timestamp.toLocaleTimeString() : ""}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Session Ended Message */}
-            {sessionEnded && (
-              <div className="p-4 sm:p-6 border-t bg-red-50 border-red-200">
-                <div className="text-center">
-                  <p className="text-red-600 font-bold text-base sm:text-lg">🚫 Nirdushan has BLOCKED you!</p>
-                  <p className="text-red-500 text-sm mt-1">Your negative energy is not welcome in this sacred space</p>
-                  <p className="text-red-400 text-xs mt-2">Access to universal wisdom has been revoked</p>
-                </div>
-              </div>
-            )}
-
-            {/* Input Area */}
-            <div className={`p-3 sm:p-6 border-t bg-white ${sessionEnded ? "opacity-50 pointer-events-none" : ""}`}>
-              <div className="space-y-3 sm:space-y-4">
-                {/* Main Input */}
-                <div className="relative">
-                  <div className="flex flex-col sm:flex-row sm:items-end gap-3">
-                    <div className="flex-1 relative">
-                      <label htmlFor="message-input" className="block text-sm font-medium text-gray-700 mb-2">
-                        Share Your Energy
-                      </label>
-                      <div className="relative">
-                        <Input
-                          id="message-input"
-                          value={inputValue}
-                          onChange={e => setInputValue(e.target.value)}
-                          placeholder={
-                            sessionEnded
-                              ? "Session ended"
-                              : "Share your thoughts, questions, or energy with Coach Nirdushan..."
-                          }
-                          className="pr-12 py-3 text-sm border-gray-300 focus:border-orange-500 focus:ring-orange-500 rounded-lg shadow-sm min-h-[44px]"
-                          onKeyPress={e => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
-                          maxLength={500}
-                          disabled={isLoading || sessionEnded}
-                        />
-                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-400">
-                          {inputValue.length}/500
+                  ))}
+                  {isLoading && messages.length > 0 && messages[messages.length - 1].text === "" && (
+                    <div className="flex justify-start">
+                      <div className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 max-w-[85%] sm:max-w-[80%] p-3 sm:p-4 rounded-2xl shadow-sm">
+                        <div className="flex items-center gap-2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                          <p className="text-sm">Coach Nirdushan is channeling universal wisdom...</p>
                         </div>
                       </div>
                     </div>
-                    <Button
-                      onClick={handleSendMessage}
-                      disabled={!inputValue.trim() || isLoading || sessionEnded}
-                      className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:bg-gray-300 px-4 sm:px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-md min-h-[44px] w-full sm:w-auto"
-                    >
-                      <Send className="w-4 h-4 sm:mr-2" />
-                      <span className="hidden sm:inline">
-                        {isLoading ? "Sending..." : sessionEnded ? "Blocked" : "Send"}
-                      </span>
-                      <span className="sm:hidden">{isLoading ? "..." : sessionEnded ? "Blocked" : "Send"}</span>
-                    </Button>
-                  </div>
+                  )}
                 </div>
 
-                {/* Quick Response Section */}
-                <div className="border-t pt-3 sm:pt-4">
-                  <p className="text-sm font-medium text-gray-700 mb-3 flex items-center gap-2">
-                    <Zap className="w-4 h-4 text-orange-500" />
-                    Universal Energy Patterns:
-                  </p>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                    {quickResponses.map((response, index) => (
-                      <Button
-                        key={index}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setInputValue(response.text)}
-                        disabled={isLoading || sessionEnded}
-                        className={`text-xs px-3 py-2 transition-all duration-200 min-h-[36px] justify-start ${response.className}`}
-                      >
-                        {response.label}
-                      </Button>
-                    ))}
+                {/* Session Ended Message */}
+                {sessionEnded && (
+                  <div className="p-4 sm:p-6 border-t bg-red-50 border-red-200">
+                    <div className="text-center">
+                      <p className="text-red-600 font-bold text-base sm:text-lg">🚫 Nirdushan has BLOCKED you!</p>
+                      <p className="text-red-500 text-sm mt-1">
+                        Your negative energy is not welcome in this sacred space
+                      </p>
+                      <p className="text-red-400 text-xs mt-2">Access to universal wisdom has been revoked</p>
+                    </div>
                   </div>
+                )}
+
+                {/* Input Area */}
+                <div className="p-3 sm:p-6 border-t bg-white">
+                  {/* Main Input or Reload Button */}
+                  {sessionEnded ? (
+                    <div className="text-center space-y-4">
+                      <Button
+                        onClick={() => window.location.reload()}
+                        className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-md"
+                      >
+                        <ArrowLeft className="w-4 h-4 mr-2" />
+                        Start New Session
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col sm:flex-row sm:items-end gap-3">
+                      <div className="flex-1 relative">
+                        <label htmlFor="message-input" className="block text-sm font-medium text-gray-700 mb-2">
+                          Share Your Energy
+                        </label>
+                        <div className="relative">
+                          <Input
+                            id="message-input"
+                            value={inputValue}
+                            onChange={e => setInputValue(e.target.value)}
+                            placeholder="Share your thoughts, questions, or energy with Coach Nirdushan..."
+                            className="pr-12 py-3 text-sm border-gray-300 focus:border-orange-500 focus:ring-orange-500 rounded-lg shadow-sm min-h-[44px]"
+                            onKeyPress={e => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
+                            maxLength={500}
+                            disabled={isLoading}
+                          />
+                          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-400">
+                            {inputValue.length}/500
+                          </div>
+                        </div>
+                      </div>
+                      <Button
+                        onClick={handleSendMessage}
+                        disabled={!inputValue.trim() || isLoading}
+                        className="bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 disabled:bg-gray-300 px-4 sm:px-6 py-3 rounded-lg font-medium transition-all duration-200 shadow-md min-h-[44px] w-full sm:w-auto"
+                      >
+                        <Send className="w-4 h-4 sm:mr-2" />
+                        <span className="hidden sm:inline">{isLoading ? "Sending..." : "Send"}</span>
+                        <span className="sm:hidden">{isLoading ? "..." : "Send"}</span>
+                      </Button>
+                    </div>
+                  )}
                 </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
       </div>
     </div>
   );
