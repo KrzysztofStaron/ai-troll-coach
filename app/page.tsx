@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Zap, Star, AlertTriangle, Ban, Sparkles, Brain, Heart, Target } from "lucide-react";
 import { useState, useEffect } from "react";
+import Link from "next/link";
 
 export default function LandingPage() {
   const [currentStage, setCurrentStage] = useState(0);
@@ -50,7 +51,9 @@ export default function LandingPage() {
               <p className="text-xs text-gray-600">Master of Universal Laws & Energy Alignment</p>
             </div>
           </div>
-          <Button className="bg-orange-500 hover:bg-orange-600">Start Session</Button>
+          <Link href="/app">
+            <Button className="bg-orange-500 hover:bg-orange-600">Start Session</Button>
+          </Link>
         </div>
       </header>
 
@@ -72,16 +75,20 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-lg px-8">
-              Challenge the Master
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-orange-300 text-orange-700 hover:bg-orange-50 text-lg px-8 bg-transparent"
-            >
-              View Credentials
-            </Button>
+            <Link href="/app">
+              <Button size="lg" className="bg-orange-500 hover:bg-orange-600 text-lg px-8">
+                Challenge the Master
+              </Button>
+            </Link>
+            <Link href="/app">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-orange-300 text-orange-700 hover:bg-orange-50 text-lg px-8 bg-transparent"
+              >
+                View Credentials
+              </Button>
+            </Link>
           </div>
 
           {/* Transformation Animation */}
@@ -334,16 +341,20 @@ export default function LandingPage() {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button size="lg" className="bg-white text-orange-600 hover:bg-gray-100 text-lg px-8">
-              Start Trolling Now
-            </Button>
-            <Button
-              size="lg"
-              variant="outline"
-              className="border-white text-white hover:bg-white/10 text-lg px-8 bg-transparent"
-            >
-              Learn More
-            </Button>
+            <Link href="/app">
+              <Button size="lg" className="bg-white text-orange-600 hover:bg-gray-100 text-lg px-8">
+                Start Trolling Now
+              </Button>
+            </Link>
+            <Link href="/app">
+              <Button
+                size="lg"
+                variant="outline"
+                className="border-white text-white hover:bg-white/10 text-lg px-8 bg-transparent"
+              >
+                Learn More
+              </Button>
+            </Link>
           </div>
         </div>
       </section>
