@@ -36,18 +36,18 @@ export function ChatMessage({
   };
 
   return (
-    <div className={`flex gap-3 p-4 ${isCoach ? "justify-start" : "justify-end"}`}>
+    <div className={`flex gap-2 sm:gap-3 p-2 sm:p-4 ${isCoach ? "justify-start" : "justify-end"}`}>
       {isCoach && (
         <div
-          className={`w-10 h-10 rounded-full flex items-center justify-center ${
+          className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
             angerLevel > 60 ? "animate-pulse" : "animate-pulse-zen"
           }`}
         >
-          <span className="text-2xl">{getCoachEmoji(angerLevel)}</span>
+          <span className="text-lg sm:text-2xl">{getCoachEmoji(angerLevel)}</span>
         </div>
       )}
 
-      <div className={`max-w-[80%] space-y-2 ${isCoach ? "order-1" : "order-2"}`}>
+      <div className={`max-w-[85%] sm:max-w-[80%] space-y-2 ${isCoach ? "order-1" : "order-2"}`}>
         <div
           className={`rounded-lg p-3 ${isCoach ? getMessageStyle(angerLevel) : "bg-primary text-primary-foreground"}`}
         >
@@ -70,8 +70,8 @@ export function ChatMessage({
       </div>
 
       {!isCoach && (
-        <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
-          <span className="text-white text-lg">🫵</span>
+        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+          <span className="text-white text-sm sm:text-lg">🫵</span>
         </div>
       )}
     </div>

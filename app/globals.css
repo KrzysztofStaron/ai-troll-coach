@@ -167,6 +167,37 @@
   animation: shake-screen 0.3s ease-in-out infinite;
 }
 
+/* Mobile optimizations */
+.mobile-scroll {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.mobile-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.mobile-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.mobile-scroll::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 2px;
+}
+
+/* Touch-friendly button sizes */
+@media (max-width: 640px) {
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  input {
+    min-height: 44px;
+  }
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
