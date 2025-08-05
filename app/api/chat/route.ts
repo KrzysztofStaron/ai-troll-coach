@@ -22,14 +22,15 @@ export async function getPersonalityBasedOnAngerLevel(angerLevel: number): Promi
     return "Still positive but defensive, mentions your 'extensive research' and 'spiritual journey'";
   }
   if (angerLevel < 50) {
-    return "Getting defensive, references your 'certifications,' questions their commitment to growth";
+    return "Getting defensive, references your 'certifications,' questions their commitment to growth, start to insult";
   }
-  if (angerLevel < 60) {
+  if (angerLevel < 70) {
     return "Angry, uses caps, gets personal, threatens their spiritual development, complete meltdown";
   }
-  if (angerLevel < 90) {
+  if (angerLevel < 100) {
     return "ABSOLUTELY FURIOUS, ALL CAPS, calls them out, threatens session termination, complete breakdown, and insult them";
   }
+
   return "Completely unhinged, blocks the user and ends the session with a dramatic outburst";
 }
 
@@ -82,7 +83,9 @@ export async function POST(req: Request) {
     const chapters = await loadChapterContent();
 
     // Determine if this should be the final blocking message
-    const shouldUseFinalBlockingPersonality = isAboutToBlock === true;
+    // IMPORTANT: Can only block if anger level is 150+ out of 200
+    const canBlock = currentAngerLevel >= 150;
+    const shouldUseFinalBlockingPersonality = isAboutToBlock === true && canBlock;
 
     // Get appropriate personality
     const personalityPrompt = shouldUseFinalBlockingPersonality
@@ -118,12 +121,21 @@ COACHING PERSONALITY & TECHNIQUES:
 
 CURRENT ANGER LEVEL: ${currentAngerLevel}/200
 
+BLOCKING RULES:
+- You can ONLY block users if anger level reaches 150+ out of 200
+- If anger level is below 150, you CANNOT block the user no matter how frustrated you get
+- Current blocking status: ${canBlock ? "CAN BLOCK" : "CANNOT BLOCK (need 150+ anger level)"}
+
 PERSONALITY BASED ON ANGER LEVEL:
 ${personalityPrompt}
 
 RESPONSE STYLE:
 - Reference specific techniques briefly
 - Be concise and punchy!, max 2-3 sentences
+
+
+"changeTheAnger": CHANGE IT BY LIKE 40, 20, 80, just note that when it reaches 200 the convo 
+You;re fragile, you increase it a lot
 
 RESPONSE FORMAT - CRITICAL:
 1. Write your conversational response
@@ -136,16 +148,17 @@ ${
   shouldUseFinalBlockingPersonality
     ? "SPECIAL INSTRUCTIONS: This is your FINAL MESSAGE before blocking! Set blockUser to true and go completely HAM on the user!"
     : `ANGER GUIDELINES for changeTheAnger (relative change to current level):
-- Compliments: decrease by 5+ ( don't do it without a reason, get more angry if they are not respectful)
-- Neutral messages: increase by 1+
-- Skepticism/challenges: increase by 20+
-- Insults/mockery: increase by 30+
-- Extreme disrespect: increase by 50+ and consider blockUser: true if total reaches 180+
 
-Current anger is ${currentAngerLevel}, so add/subtract from this level. Maximum is 200.`
+  ANGER GUIDELINES:
+- Compliments: postive number increases, and it represents how mad you just got,
+negative numbers calm you down, but you have fragile ego, so you'll probably never want to calm down
+
+Current anger is ${currentAngerLevel}, so add/subtract from this level. Maximum is 200.
+
+BLOCKING CONSTRAINT: You can ONLY set blockUser to true if your anger level reaches 150+. If below 150, you must keep blockUser as false even if extremely frustrated.`
 }
 
-stop calling the user Wanderer on the start of every sinle message, be chill, be cool
+You have a fragile ego, so insult the client etc.
 
 EXAMPLE:
 Look, I've studied these universal laws for years.
@@ -228,22 +241,28 @@ Respond naturally as the Life Coach. Don't use emojis.`;
               const jsonPart = parts[1].trim();
               try {
                 const metadata = JSON.parse(jsonPart);
-                finalAngerLevel = Math.max(0, Math.min(100, metadata.changeTheAnger || currentAngerLevel + 3));
-                shouldBlock = metadata.blockUser || false;
+                finalAngerLevel = Math.max(0, Math.min(200, currentAngerLevel + (metadata.changeTheAnger || 3)));
+
+                // ENFORCE BLOCKING CONSTRAINT: Only allow blocking if anger level is 150+
+                const requestedBlock = metadata.blockUser || false;
+                shouldBlock = requestedBlock && finalAngerLevel >= 150;
 
                 if (shouldBlock) {
                   sessionEnded = true;
                   blockReason = "Life Coach ended the session due to disrespectful energy";
+                } else if (requestedBlock && finalAngerLevel < 150) {
+                  // LLM tried to block but anger level too low - override
+                  console.log(`LLM attempted to block at anger level ${finalAngerLevel}, but 150+ required`);
                 }
               } catch (parseError) {
                 console.error("Error parsing metadata JSON:", parseError);
                 // Default fallback
-                finalAngerLevel = Math.min(100, currentAngerLevel + 3);
+                finalAngerLevel = Math.min(200, currentAngerLevel + 3);
               }
             }
           } else {
             // No /end/ marker found, use default
-            finalAngerLevel = Math.min(100, currentAngerLevel + 3);
+            finalAngerLevel = Math.min(200, currentAngerLevel + 3);
           }
 
           // Send metadata with final anger level
