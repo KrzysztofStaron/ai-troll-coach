@@ -9,7 +9,7 @@ export async function blockUser(reason: string): Promise<void> {
   try {
     // In a real application, you would store this in a database
     // For now, we'll just log it and could implement session storage
-    console.log(`User blocked by Coach Nirdushan. Reason: ${reason}`);
+    console.log(`User blocked by Life Coach. Reason: ${reason}`);
 
     // You could implement actual blocking logic here:
     // - Store blocked user in database

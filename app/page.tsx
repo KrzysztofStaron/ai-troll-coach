@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,20 +20,29 @@ export default function CoachTrollPage() {
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 1,
-      text: "Hello, thanks for buying my course. I'm Coach Nirdushan, your guide on the path to becoming the MASTER OF YOUR LIFE!",
+      text: "Hello, thanks for buying my course. I'm your Life Coach, your guide on the path to becoming the MASTER OF YOUR LIFE!",
       isUser: false,
       timestamp: new Date(),
     },
   ]);
   const [inputValue, setInputValue] = useState("");
-  const [angerLevel, setAngerLevel] = useState(15);
+  const [angerLevel, setAngerLevel] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [sessionEnded, setSessionEnded] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setIsClient(true);
   }, []);
+
+  // Auto-scroll to bottom when new messages are added
+  useEffect(() => {
+    const messagesContainer = messagesEndRef.current?.closest(".overflow-y-auto");
+    if (messagesContainer) {
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+  }, [messages]);
 
   const getAngerColor = () => {
     if (angerLevel < 30) return "bg-green-500";
@@ -238,7 +247,7 @@ export default function CoachTrollPage() {
                 <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Coach Nirdushan</h1>
+                <h1 className="text-lg sm:text-2xl font-bold text-gray-900 truncate">Life Coach</h1>
                 <p className="text-xs sm:text-sm text-gray-500 flex items-center gap-1">
                   <Brain className="w-3 h-3 flex-shrink-0" />
                   <span className="truncate">Master of Universal Laws & Energy Alignment</span>
@@ -327,18 +336,20 @@ export default function CoachTrollPage() {
                       <div className="bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 max-w-[85%] sm:max-w-[80%] p-3 sm:p-4 rounded-2xl shadow-sm">
                         <div className="flex items-center gap-2">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
-                          <p className="text-sm">Coach Nirdushan is channeling universal wisdom...</p>
+                          <p className="text-sm">Your Life Coach is channeling universal wisdom...</p>
                         </div>
                       </div>
                     </div>
                   )}
+                  {/* Invisible div for auto-scroll target */}
+                  <div ref={messagesEndRef} />
                 </div>
 
                 {/* Session Ended Message */}
                 {sessionEnded && (
                   <div className="p-4 sm:p-6 border-t bg-red-50 border-red-200">
                     <div className="text-center">
-                      <p className="text-red-600 font-bold text-base sm:text-lg">🚫 Nirdushan has BLOCKED you!</p>
+                      <p className="text-red-600 font-bold text-base sm:text-lg">🚫 Your Life Coach has BLOCKED you!</p>
                       <p className="text-red-500 text-sm mt-1">
                         Your negative energy is not welcome in this sacred space
                       </p>
@@ -371,7 +382,7 @@ export default function CoachTrollPage() {
                             id="message-input"
                             value={inputValue}
                             onChange={e => setInputValue(e.target.value)}
-                            placeholder="Share your thoughts, questions, or energy with Coach Nirdushan..."
+                            placeholder="Share your thoughts, questions, or energy with your Life Coach..."
                             className="pr-12 py-3 text-sm border-gray-300 focus:border-orange-500 focus:ring-orange-500 rounded-lg shadow-sm min-h-[44px]"
                             onKeyPress={e => e.key === "Enter" && !e.shiftKey && handleSendMessage()}
                             maxLength={500}
