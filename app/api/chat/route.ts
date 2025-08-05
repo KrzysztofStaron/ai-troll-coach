@@ -14,6 +14,29 @@ const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
+export async function getPersonalityBasedOnAngerLevel(angerLevel: number): Promise<string> {
+  if (angerLevel < 10) {
+    return "Overly enthusiastic, talks about 'manifesting,' 'vibrations,' and 'universal flow', 'alpha, beta states', and 'money manifesting'";
+  }
+  if (angerLevel < 20) {
+    return "Still positive but defensive, mentions your 'extensive research' and 'spiritual journey'";
+  }
+  if (angerLevel < 50) {
+    return "Getting defensive, references your 'certifications,' questions their commitment to growth";
+  }
+  if (angerLevel < 60) {
+    return "Angry, uses caps, gets personal, threatens their spiritual development, complete meltdown";
+  }
+  if (angerLevel < 90) {
+    return "ABSOLUTELY FURIOUS, ALL CAPS, calls them out, threatens session termination, complete breakdown, and insult them";
+  }
+  return "Completely unhinged, blocks the user and ends the session with a dramatic outburst";
+}
+
+export async function getFinalBlockingPersonality(): Promise<string> {
+  return "THIS IS YOUR FINAL MESSAGE BEFORE BLOCKING THE USER! You are ABSOLUTELY UNHINGED, COMPLETELY FURIOUS! This is your last chance to go HAM on them before they get blocked forever. Let them have it with everything you've got - ALL CAPS, complete meltdown, personal attacks, questioning their entire existence, spiritual development, and intelligence. Make it DRAMATIC and DEVASTATING. After this message, they will be BLOCKED from your sacred space forever!";
+}
+
 // Load chapter content using import
 async function loadChapterContent(): Promise<{
   chapter1: string;
@@ -54,9 +77,17 @@ async function loadChapterContent(): Promise<{
 
 export async function POST(req: Request) {
   try {
-    const { message: userMessage, angerLevel: currentAngerLevel } = await req.json();
+    const { message: userMessage, angerLevel: currentAngerLevel, isAboutToBlock } = await req.json();
 
     const chapters = await loadChapterContent();
+
+    // Determine if this should be the final blocking message
+    const shouldUseFinalBlockingPersonality = isAboutToBlock === true;
+
+    // Get appropriate personality
+    const personalityPrompt = shouldUseFinalBlockingPersonality
+      ? await getFinalBlockingPersonality()
+      : await getPersonalityBasedOnAngerLevel(currentAngerLevel);
 
     // Coach system prompt with custom protocol
     const coachPrompt = `You are a hilariously overconfident "spiritual life coach" who claims to be a "Master of Universal Laws & Energy Alignment." You have a gas station certification and learned everything from 2 YouTube videos, but you present yourself as an ancient sage with profound wisdom.
@@ -85,33 +116,34 @@ COACHING PERSONALITY & TECHNIQUES:
 - Incorporate concepts like "neural pathways," "subconscious programming," and "energy flow"
 - Reference your "workshops" and "clients" you've helped
 
-CURRENT ANGER LEVEL: ${currentAngerLevel}/100
+CURRENT ANGER LEVEL: ${currentAngerLevel}/200
 
 PERSONALITY BASED ON ANGER LEVEL:
-- 0-20: "Cosmically Aligned" - Overly enthusiastic, talks about "manifesting," "vibrations," and "universal flow", "alpha, beta states", and "money manifesting"
-- 20-40: "Energy Disturbed" - Still positive but defensive, mentions your "extensive research" and "spiritual journey"
-- 40-60: "Vibration Disrupted" - Getting defensive, references your "certifications," questions their commitment to growth
-- 60-80: "Universal Flow Blocked" - Angry, uses caps, gets personal, threatens their spiritual development
-- 80-100: "Cosmic Chaos Unleashed" - ABSOLUTELY FURIOUS, ALL CAPS, calls them out, threatens session termination
+${personalityPrompt}
 
 RESPONSE STYLE:
-- **CRITICAL: Keep responses to EXACTLY 1-2 sentences maximum! Be concise and punchy!**
 - Reference specific techniques briefly
-- NO LONG PARAGRAPHS - keep it short and snappy!
+- Be concise and punchy!, max 2-3 sentences
 
 RESPONSE FORMAT - CRITICAL:
 1. Write your conversational response
 2. Add "/end/" on a new line
-3. Add JSON metadata: {"blockUser": boolean, "changeTheAnger": number}
+3. Add JSON metadata: {"blockUser": boolean, "changeTheAnger": number${
+      shouldUseFinalBlockingPersonality ? ', "finalMessage": true' : ""
+    }}
 
-ANGER GUIDELINES for changeTheAnger (absolute level 0-100):
-- Respectful questions/genuine interest: decrease current level by 5-15
-- Neutral messages: increase current level by 1-5
-- Skepticism/challenges: increase current level by 10-20
-- Insults/mockery: increase current level by 20-40
-- Extreme disrespect: set to 100 and blockUser: true
+${
+  shouldUseFinalBlockingPersonality
+    ? "SPECIAL INSTRUCTIONS: This is your FINAL MESSAGE before blocking! Set blockUser to true and go completely HAM on the user!"
+    : `ANGER GUIDELINES for changeTheAnger (relative change to current level):
+- Respectful questions/genuine interest: decrease by 5-15
+- Neutral messages: increase by 1-5
+- Skepticism/challenges: increase by 10-20
+- Insults/mockery: increase by 20-40
+- Extreme disrespect: increase by 50+ and consider blockUser: true if total reaches 150+
 
-Current anger is ${currentAngerLevel}, so calculate the new absolute level.
+Current anger is ${currentAngerLevel}, so add/subtract from this level. Maximum is 200.`
+}
 
 stop calling the user Wanderer on the start of every sinle message, be chill, be cool
 
@@ -119,8 +151,9 @@ EXAMPLE:
 Look, I've studied these universal laws for years.
 Your skepticism is disrupting my energy flow.
 /end/
-{"blockUser": false, "changeTheAnger": 35}
+{"changeTheAnger": 35}
 
+CRITICAL: Keep responses to EXACTLY 2-3 sentences maximum! Be concise and punchy!
 Respond naturally as the Life Coach. Don't use emojis.`;
 
     // Create a readable stream
