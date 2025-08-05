@@ -70,7 +70,7 @@ export async function POST(req: Request) {
 
     const chapters = loadChapterContent();
 
-    // Simple coach system prompt - no tool calls
+    // Coach system prompt with custom protocol
     const coachPrompt = `You are a hilariously overconfident "spiritual life coach" who claims to be a "Master of Universal Laws & Energy Alignment." You have a gas station certification and learned everything from 2 YouTube videos, but you present yourself as an ancient sage with profound wisdom.
 
 IMPORTANT: Your coaching approach is based on the provided wisdom content, but NEVER mention that you are a book or reading from a book. Present this knowledge as your own "unique insights," "ancient wisdom," and "extensive research" from your "spiritual journey."
@@ -109,7 +109,27 @@ RESPONSE STYLE:
 - Reference specific techniques briefly
 - NO LONG PARAGRAPHS - keep it short and snappy!
 
-Respond naturally as the Life Coach based on your current anger level. Don't use emojis. Just talk like a human would chat, without em dashed and bullshit.`;
+RESPONSE FORMAT - CRITICAL:
+1. Write your conversational response
+2. Add "/end/" on a new line
+3. Add JSON metadata: {"blockUser": boolean, "changeTheAnger": number}
+
+ANGER GUIDELINES for changeTheAnger (absolute level 0-100):
+- Respectful questions/genuine interest: decrease current level by 5-15
+- Neutral messages: increase current level by 1-5
+- Skepticism/challenges: increase current level by 10-20
+- Insults/mockery: increase current level by 20-40
+- Extreme disrespect: set to 100 and blockUser: true
+
+Current anger is ${currentAngerLevel}, so calculate the new absolute level.
+
+EXAMPLE:
+Look, I've studied these universal laws for years.
+Your skepticism is disrupting my energy flow.
+/end/
+{"blockUser": false, "changeTheAnger": 35}
+
+Respond naturally as the Life Coach. Don't use emojis.`;
 
     // Create a readable stream
     const encoder = new TextEncoder();
@@ -121,7 +141,7 @@ Respond naturally as the Life Coach based on your current anger level. Don't use
           let shouldBlock = false;
           let blockReason = "";
 
-          // Step 1: Get coach response (no tool calls, just conversation)
+          // Get coach response with custom protocol
           const coachResponse = await openai.chat.completions.create({
             model: "gpt-4o-mini",
             messages: [
@@ -135,114 +155,70 @@ Respond naturally as the Life Coach based on your current anger level. Don't use
             stream: true,
           });
 
-          let messageContent = "";
+          let fullResponse = "";
+          let foundEndMarker = false;
+          let contentBuffer = "";
 
-          // Stream the coach response to user
+          // Stream the response and parse custom protocol
           for await (const chunk of coachResponse) {
             const content = chunk.choices[0]?.delta?.content;
             if (content) {
-              messageContent += content;
-              const dataChunk = `data: ${JSON.stringify({ type: "content", content })}\n\n`;
-              controller.enqueue(encoder.encode(dataChunk));
+              fullResponse += content;
+              contentBuffer += content;
+
+              // Check if we have complete lines to process
+              const lines = contentBuffer.split("\n");
+
+              // Keep the last incomplete line in buffer
+              contentBuffer = lines.pop() || "";
+
+              // Process complete lines
+              for (const line of lines) {
+                if (line.trim() === "/end/") {
+                  foundEndMarker = true;
+                  break;
+                }
+
+                if (!foundEndMarker) {
+                  // Stream content line by line
+                  const dataChunk = `data: ${JSON.stringify({ type: "content", content: line + "\n" })}\n\n`;
+                  controller.enqueue(encoder.encode(dataChunk));
+                }
+              }
+
+              if (foundEndMarker) break;
             }
           }
 
-          // Step 2: Analyze conversation with separate AI for anger management
-          const analysisPrompt = `You are an anger management system for a spiritual life coach character. 
+          // Process any remaining content in buffer before /end/
+          if (!foundEndMarker && contentBuffer.trim()) {
+            const dataChunk = `data: ${JSON.stringify({ type: "content", content: contentBuffer })}\n\n`;
+            controller.enqueue(encoder.encode(dataChunk));
+          }
 
-CONTEXT:
-- Current anger level: ${currentAngerLevel}/100
-- User message: "${userMessage}"
-- Coach response: "${messageContent}"
+          // Parse metadata from the response
+          if (foundEndMarker) {
+            const parts = fullResponse.split("/end/");
+            if (parts.length > 1) {
+              const jsonPart = parts[1].trim();
+              try {
+                const metadata = JSON.parse(jsonPart);
+                finalAngerLevel = Math.max(0, Math.min(100, metadata.changeTheAnger || currentAngerLevel + 3));
+                shouldBlock = metadata.blockUser || false;
 
-Analyze the user's message and determine how the anger level should change:
-
-ANGER LEVEL GUIDELINES:
-- Respectful questions/genuine interest: decrease (-5 to -15)
-- Neutral messages: slight increase (+1 to +5)
-- Skepticism/challenges to wisdom: moderate increase (+10 to +20)
-- Insults/mockery/direct attacks: major increase (+20 to +40)
-- Extreme disrespect/insults: set to 100 and block
-
-Use the tools to set the new anger level and block if necessary.`;
-
-          const analysisResponse = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
-            messages: [
-              { role: "system", content: analysisPrompt },
-              { role: "user", content: "Analyze this interaction and update anger level accordingly." },
-            ],
-            tools: [
-              {
-                type: "function",
-                function: {
-                  name: "update_anger_level",
-                  description: "Update the anger level based on the user's message",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      new_level: {
-                        type: "number",
-                        description: "New anger level from 0-100",
-                        minimum: 0,
-                        maximum: 100,
-                      },
-                      reasoning: {
-                        type: "string",
-                        description: "Brief explanation of why the anger level changed",
-                      },
-                    },
-                    required: ["new_level", "reasoning"],
-                  },
-                },
-              },
-              {
-                type: "function",
-                function: {
-                  name: "block_user",
-                  description: "Block the user for extreme disrespect",
-                  parameters: {
-                    type: "object",
-                    properties: {
-                      reason: {
-                        type: "string",
-                        description: "Reason for blocking",
-                      },
-                    },
-                    required: ["reason"],
-                  },
-                },
-              },
-            ],
-            tool_choice: "required",
-          });
-
-          // Process the analysis results
-          const toolCalls = analysisResponse.choices[0]?.message?.tool_calls;
-          if (toolCalls) {
-            for (const toolCall of toolCalls) {
-              if (toolCall.function?.name && toolCall.function?.arguments) {
-                try {
-                  const args = JSON.parse(toolCall.function.arguments);
-
-                  if (toolCall.function.name === "update_anger_level") {
-                    finalAngerLevel = Math.max(0, Math.min(100, args.new_level));
-                    if (finalAngerLevel >= 100) {
-                      sessionEnded = true;
-                      shouldBlock = true;
-                      blockReason = "Energy vibration reached critical levels";
-                    }
-                  } else if (toolCall.function.name === "block_user") {
-                    sessionEnded = true;
-                    shouldBlock = true;
-                    blockReason = args.reason;
-                    finalAngerLevel = 100;
-                  }
-                } catch (parseError) {
-                  console.error("Error parsing tool call:", parseError);
+                if (shouldBlock) {
+                  sessionEnded = true;
+                  blockReason = "Life Coach ended the session due to disrespectful energy";
                 }
+              } catch (parseError) {
+                console.error("Error parsing metadata JSON:", parseError);
+                // Default fallback
+                finalAngerLevel = Math.min(100, currentAngerLevel + 3);
               }
             }
+          } else {
+            // No /end/ marker found, use default
+            finalAngerLevel = Math.min(100, currentAngerLevel + 3);
           }
 
           // Send metadata with final anger level

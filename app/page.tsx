@@ -132,11 +132,61 @@ export default function CoachTrollPage() {
                   metadata = data;
                   setAngerLevel(data.angerLevel);
                 } else if (data.type === "content") {
+                  // Accumulate all content first
                   streamedText += data.content;
-                  // Update the message in real-time
-                  setMessages(prev =>
-                    prev.map(msg => (msg.id === coachMessageId ? { ...msg, text: streamedText } : msg))
-                  );
+
+                  // Check if we have the complete response with /end/ marker
+                  if (streamedText.includes("/end/")) {
+                    // Split content at /end/ marker
+                    const parts = streamedText.split("/end/");
+                    const displayContent = parts[0].trim();
+                    const metadataString = parts[1] ? parts[1].trim() : "";
+
+                    // Update message with only the display content
+                    setMessages(prev =>
+                      prev.map(msg => (msg.id === coachMessageId ? { ...msg, text: displayContent } : msg))
+                    );
+
+                    // Try to parse metadata JSON
+                    if (metadataString) {
+                      try {
+                        const metadata = JSON.parse(metadataString);
+                        console.log("Parsed metadata:", metadata);
+
+                        // Handle anger level change
+                        if (typeof metadata.changeTheAnger === "number") {
+                          setAngerLevel(prev => Math.max(0, Math.min(100, prev + metadata.changeTheAnger)));
+                        }
+
+                        // Handle blocking
+                        if (metadata.blockUser === true) {
+                          console.log("Blocking user");
+                          setSessionEnded(true);
+                          try {
+                            await blockUser("Life Coach ended the session due to disrespectful energy");
+                          } catch (error) {
+                            console.error("Failed to block user:", error);
+                          }
+                        }
+                      } catch (parseError) {
+                        console.error("Error parsing metadata JSON:", parseError, "Raw string:", metadataString);
+                        // Default fallback - add 3 to current anger
+                        setAngerLevel(prev => Math.min(100, prev + 3));
+                      }
+                    } else {
+                      console.log("No metadata found, using default +3 anger");
+                      // No metadata found, use default
+                      setAngerLevel(prev => Math.min(100, prev + 3));
+                    }
+
+                    // Stop processing - we found the complete response
+                    break;
+                  } else {
+                    // No /end/ marker yet, continue displaying partial content
+                    setMessages(prev =>
+                      prev.map(msg => (msg.id === coachMessageId ? { ...msg, text: streamedText } : msg))
+                    );
+                  }
                 } else if (data.type === "done") {
                   break;
                 } else if (data.type === "error") {
@@ -151,6 +201,8 @@ export default function CoachTrollPage() {
               }
             }
           }
+
+          console.log(streamedText);
         }
       }
 
