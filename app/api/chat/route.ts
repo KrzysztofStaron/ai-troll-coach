@@ -1,6 +1,4 @@
 import OpenAI from "openai";
-import fs from "fs";
-import path from "path";
 
 interface CoachResponseMetadata {
   angerLevel: number;
@@ -16,39 +14,29 @@ const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
 });
 
-// Load chapter content
-function loadChapterContent(): {
+// Load chapter content using import
+async function loadChapterContent(): Promise<{
   chapter1: string;
   chapter2: string;
   chapter3: string;
   chapter4: string;
   biography: string;
-} {
+}> {
   try {
-    const chapter1Path = path.join(process.cwd(), "public", "chapter1.json");
-    const chapter2Path = path.join(process.cwd(), "public", "chapter2.json");
-    const chapter3Path = path.join(process.cwd(), "public", "chapter3.json");
-    const chapter4Path = path.join(process.cwd(), "public", "chapter4.json");
-    const biographyPath = path.join(process.cwd(), "public", "biography.json");
-
-    const chapter1Data = fs.readFileSync(chapter1Path, "utf-8");
-    const chapter2Data = fs.readFileSync(chapter2Path, "utf-8");
-    const chapter3Data = fs.readFileSync(chapter3Path, "utf-8");
-    const chapter4Data = fs.readFileSync(chapter4Path, "utf-8");
-    const biographyData = fs.readFileSync(biographyPath, "utf-8");
-
-    const parsed1 = JSON.parse(chapter1Data);
-    const parsed2 = JSON.parse(chapter2Data);
-    const parsed3 = JSON.parse(chapter3Data);
-    const parsed4 = JSON.parse(chapter4Data);
-    const parsedBio = JSON.parse(biographyData);
+    const [chapter1Data, chapter2Data, chapter3Data, chapter4Data, biographyData] = await Promise.all([
+      import("../../../public/chapter1.json"),
+      import("../../../public/chapter2.json"),
+      import("../../../public/chapter3.json"),
+      import("../../../public/chapter4.json"),
+      import("../../../public/biography.json"),
+    ]);
 
     return {
-      chapter1: parsed1.text,
-      chapter2: parsed2.text,
-      chapter3: parsed3.text,
-      chapter4: parsed4.text,
-      biography: parsedBio.text,
+      chapter1: chapter1Data.text || "Chapter 1 content not available.",
+      chapter2: chapter2Data.text || "Chapter 2 content not available.",
+      chapter3: chapter3Data.text || "Chapter 3 content not available.",
+      chapter4: chapter4Data.text || "Chapter 4 content not available.",
+      biography: biographyData.text || "Biography content not available.",
     };
   } catch (error) {
     console.error("Error loading chapter content:", error);
@@ -68,7 +56,7 @@ export async function POST(req: Request) {
   try {
     const { message: userMessage, angerLevel: currentAngerLevel } = await req.json();
 
-    const chapters = loadChapterContent();
+    const chapters = await loadChapterContent();
 
     // Coach system prompt with custom protocol
     const coachPrompt = `You are a hilariously overconfident "spiritual life coach" who claims to be a "Master of Universal Laws & Energy Alignment." You have a gas station certification and learned everything from 2 YouTube videos, but you present yourself as an ancient sage with profound wisdom.
@@ -143,7 +131,7 @@ Respond naturally as the Life Coach. Don't use emojis.`;
 
           // Get coach response with custom protocol
           const coachResponse = await openai.chat.completions.create({
-            model: "gpt-4o-mini",
+            model: "google/gemini-2.5-flash",
             messages: [
               { role: "system", content: coachPrompt },
               { role: "user", content: userMessage },
